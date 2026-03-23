@@ -14,9 +14,8 @@ export async function generateTokens(
   userId: string,
   email: string
 ): Promise<{ accessToken: string; refreshToken: string }> {
-  const now = Math.floor(Date.now() / 1000);
 
-  // Access token - 15 minutes
+  // Access token - 30 minutes
   const accessToken = await new SignJWT({
     sub: userId,
     email,
@@ -24,7 +23,7 @@ export async function generateTokens(
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("15m")
+    .setExpirationTime("30m")
     .sign(SECRET_KEY);
 
   // Refresh token - 7 days
@@ -48,4 +47,22 @@ export async function verifyToken(token: string): Promise<TokenPayload | null> {
   } catch {
     return null;
   }
+}
+
+export async function getTokenPayload(token: string) {
+    const payload = await verifyToken(token);
+
+    if (!payload || payload.type !== "access") {
+      return null
+    }
+
+    return payload
+}
+
+export function getToken(req: Request): string|null {
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader?.startsWith("Bearer ")) {
+    return null
+  }
+  return authHeader.slice(7);
 }

@@ -3,10 +3,11 @@ version: '3.8'
 services:
   postgres:
     image: postgres:16-alpine
+    container_name: clash-server-postgres
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: users_db
+      POSTGRES_DB: clash_db
     ports:
       - "5432:5432"
     volumes:
@@ -17,6 +18,30 @@ services:
       timeout: 5s
       retries: 5
 
+  ollama:
+    image: ollama/ollama:latest
+    container_name: clash-server-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+      - ./init-ollama.sh:/init-ollama.sh:ro  # ← монтируем скрипт
+    environment:
+      - OLLAMA_KEEP_ALIVE=24h
+    entrypoint: >  # ← кастомный entrypoint
+      sh -c "
+        /bin/ollama serve &
+        sleep 2
+        sh /init-ollama.sh
+        wait
+      "
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
   user-service:
     build:
       context: .
@@ -26,14 +51,19 @@ services:
       DB_PORT: 5432
       DB_USER: postgres
       DB_PASSWORD: postgres
-      DB_NAME: users_db
-      GRPC_PORT: 50051
-      PASETO_SECRET: ${PASETO_SECRET:-your-32-byte-secret-key-here!!}
+      DB_NAME: clash_db
+      REST_PORT: 50051
+      JWT_SECRET: $${JWT_SECRET:-your-32-byte-secret-key-here!!}
+      OLLAMA_URL: http://ollama:11434
+      OLLAMA_MODEL: llama3.2:1b
     ports:
       - "50051:50051"
     depends_on:
       postgres:
         condition: service_healthy
+      ollama:
+        condition: service_healthy
 
 volumes:
   postgres_data:
+  ollama_data:

@@ -3,6 +3,15 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
+    "db:build": "docker-compose up --build -d",
+    "db:start": "docker-compose up -d postgres",
+    "ai:start": "docker-compose up -d ollama",
+    "db:stop": "docker-compose stop postgres",
+    "ai:stop": "docker-compose stop ollama",
+    "db:remove": "docker-compose down -v postgres",
+    "db:logs": "docker-compose logs -f postgres",
+    "db:shell": "docker exec -it clash-server-postgres psql -U postgres -d clash_db",
+    "db:clean": "docker-compose down --remove-orphans",
     "dev": "bun --watch src/index.ts",
     "build": "bun build src/index.ts --outdir ./dist",
     "start": "bun dist/index.js",
@@ -18,13 +27,13 @@
     "glicko2.ts": "^1.3.2",
     "jose": "^6.1.3",
     "pg": "^8.11.3",
+    "sharp": "^0.34.5",
     "zod": "^3.22.4"
   },
   "devDependencies": {
     "@types/pg": "^8.10.9",
     "bun-types": "latest",
     "drizzle-kit": "^0.20.13",
-    "ts-proto": "^1.166.2",
     "typescript": "^5.3.3"
   }
 }

@@ -2,7 +2,7 @@
 import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({
-  schema: "./src/db/schema.ts",
+  schema: ["./src/modules/ratings/schema.ts", "./src/modules/tournaments/schema.ts", "./src/modules/users/schema.ts"],
   out: "./drizzle",
   driver: "pg",
   dbCredentials: {
@@ -10,6 +10,6 @@ export default defineConfig({
     port: parseInt(process.env.DB_PORT || "5432"),
     user: process.env.DB_USER || "postgres",
     password: process.env.DB_PASSWORD || "postgres",
-    database: process.env.DB_NAME || "users_db",
+    database: process.env.DB_NAME || "clash_db",
   },
 });

@@ -1,14 +1,25 @@
-import { seedCities } from "./db/seed.js";
-import { authRouter } from "./routes/auth.routes.js";
-import { cityRouter } from "./routes/city.routes.js";
-import { withCors, corsResponse, isPreflight, preflightResponse } from "./utils/cors.js";
+import { seedDatabase } from "./shared/db/seed.js";
+import { authRouter, userRouter, cityRouter, clubRouter } from "./modules/users/routes.js";
+import { ratingRouter } from "./modules/ratings/routes.js";
+import { tournamentRouter } from "./modules/tournaments/routes.js";
+import { translateRouter } from "./modules/ai/routes.js";
+import { uploadRouter } from "./modules/upload/routes.js";
+import { withCors, corsResponse, isPreflight, preflightResponse } from "./shared/utils/cors.js";
+import { initUsersModule, userService } from "./modules/users/index.js";
+import { initTournamentsModule } from "./modules/tournaments/index.js";
+import { initRatingsModule, ratingService } from "./modules/ratings/index.js";
 
 const PORT = parseInt(process.env.PORT || "3000");
 
-await seedCities();
+await seedDatabase();
+await ratingService.initialize()
+initUsersModule()
+initTournamentsModule()
+initRatingsModule()
 
 const server = Bun.serve({
   port: PORT,
+  maxRequestBodySize: 1024 * 1024 * 10,
 
   async fetch(req) {
     const url = new URL(req.url);
@@ -16,27 +27,31 @@ const server = Bun.serve({
     const method = req.method;
 
     // Preflight OPTIONS запрос
-    if (isPreflight(req)) return preflightResponse();
+    if (isPreflight(req)) return preflightResponse(req);
 
     // Health check
     if (path === "/health" && method === "GET") {
-      return corsResponse({ status: "ok" });
+      return corsResponse({ status: "ok" }, 200, req);
     }
 
-    // Пробуем auth роуты
-    const authResult = await authRouter(path, method, req);
-    if (authResult) {
-      return withCors(authResult);
-    }
+    const routers = [
+      authRouter,
+      userRouter,
+      cityRouter,
+      clubRouter,
+      tournamentRouter,
+      uploadRouter,
+      translateRouter,
+      ratingRouter
+    ];
 
-    // Пробуем city роуты
-    const cityResult = await cityRouter(path, method, req);
-    if (cityResult) {
-      return withCors(cityResult);
+    for (const router of routers) {
+      const result = await router(path, method, req);
+      if (result) return withCors(result, req);
     }
 
     // 404
-    return corsResponse({ error: "Not found" }, 404);
+    return corsResponse({ error: "Not found" }, 404, req);
   },
 });
 

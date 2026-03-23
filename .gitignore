@@ -48,3 +48,5 @@ coverage/
 tmp/
 temp/
 *.tmp
+
+uploads/
