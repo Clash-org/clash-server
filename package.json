@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "db:build": "docker-compose up --build -d",
+    "server:build": "docker-compose up --build -d",
+    "server:start": "bun run db:start & bun run ai:start",
+    "server:stop": "bun run db:stop & bun run ai:stop",
     "db:start": "docker-compose up -d postgres",
     "ai:start": "docker-compose up -d ollama",
     "db:stop": "docker-compose stop postgres",
@@ -20,7 +22,8 @@
     "db:push": "bunx drizzle-kit push:pg",
     "db:drop": "drizzle-kit drop",
     "db:studio": "drizzle-kit studio",
-    "db:check": "drizzle-kit check:pg"
+    "db:check": "drizzle-kit check:pg",
+    "license:check": "MISSING=$(grep -rL --exclude-dir=translations --include='*.ts' 'SPDX-License-Identifier: AGPL-3.0-or-later' src/); if [ -n \"$MISSING\" ]; then echo \"❌ Files missing license headers:\"; echo \"$MISSING\"; else echo \"✅ All files have license headers\"; fi"
   },
   "dependencies": {
     "drizzle-orm": "^0.29.3",

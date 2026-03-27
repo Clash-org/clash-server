@@ -1,8 +1,15 @@
+/**
+ * Clash Server - Tournament Management System
+ * Copyright (C) 2026 Clash Contributors
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
 import { db } from "../../shared/db/postgres";
 import { hashPassword, verifyPassword } from "../../shared/utils/password";
 import { getTokenPayload, generateTokens, verifyToken } from "../../shared/utils/jwt";
 import type { RegisterInput, LoginInput } from "./validation";
-import { getTranslateValue, translateCity } from "../../shared/utils/translations";
+import { translateCity } from "../../shared/utils/translations";
 import { emitEvent, USER_EVENTS } from "../../shared/event-bus";
 import { asc, eq, sql } from "drizzle-orm";
 import { cities, citiesCN, citiesRU, City, Club, clubs, NewUser, User, users } from "./schema";
@@ -155,13 +162,16 @@ export class UserService {
   }
 
   async getById(userId: string) {
-    return await db.query.users.findFirst({
+    const user = db.query.users.findFirst({
           where: eq(users.id, userId),
           with: {
             club: true,
             city: true
           }
     });
+
+    if (!user) throw new Error("User not found")
+    return user
   }
 
   async update(userId: string, data: (Partial<Omit<NewUser, "passwordHash">> & { password?: string }), actorId: string, lang: string) {

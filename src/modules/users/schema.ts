@@ -1,3 +1,10 @@
+/**
+ * Clash Server - Tournament Management System
+ * Copyright (C) 2026 Clash Contributors
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
 import { relations } from "drizzle-orm";
 import { boolean, integer, json, pgTable, serial, text, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 import { tournamentParticipants } from "../tournaments/schema";

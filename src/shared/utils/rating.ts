@@ -1,4 +1,11 @@
 /**
+ * Clash Server - Tournament Management System
+ * Copyright (C) 2026 Clash Contributors
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+/**
  * Система рейтинга для исторического фехтования на базе glicko2.ts
  * Запуск: bun run rating.ts
  */
@@ -110,11 +117,13 @@ export interface TournamentMatch {
   protestsBlue?: number;
   warningsRed?: number;
   warningsBlue?: number;
+  metadata?: MatchMetadata,
+  poolIndex?: number;
 }
 
 // Результат обработки турнира
 export interface TournamentResult {
-  redId: string;
+  userId: string;
   weaponSubtype: string;
   matchesPlayed: number;
   ratingBefore: number;
@@ -442,7 +451,7 @@ export class FencingRatingSystem {
       const matchesPlayed = matchesByFighter.get(redId)?.length || 0;
 
       results.push({
-        redId,
+        userId: redId,
         weaponSubtype,
         matchesPlayed,
         ratingBefore: before.rating,
@@ -466,7 +475,7 @@ export class FencingRatingSystem {
         const glicko = rating.glickoPlayer;
 
         results.push({
-          redId: entry.redId,
+          userId: entry.redId,
           weaponSubtype,
           matchesPlayed: 0,
           ratingBefore: glicko.getRating(),
@@ -532,15 +541,15 @@ export class FencingRatingSystem {
   }
 
   predictMatch(
-    fighterRedId: string,
-    fighterBlueId: string,
+    redId: string,
+    blueId: string,
     weaponType: WeaponType,
     category: NominationType
   ): { fighterAWin: number; fighterBWin: number } {
     const weaponSubtype = `${weaponType}_${category}`;
 
-    const ratingA = this.getOrCreateRating(fighterRedId, weaponSubtype);
-    const ratingB = this.getOrCreateRating(fighterBlueId, weaponSubtype);
+    const ratingA = this.getOrCreateRating(redId, weaponSubtype);
+    const ratingB = this.getOrCreateRating(blueId, weaponSubtype);
 
     // Формула Glicko-2 для ожидаемого результата
     // E = 1 / (1 + 10^(-g(phi) * (mu1 - mu2) / 400))
@@ -652,7 +661,7 @@ function example() {
   );
 
   results1.forEach(r => {
-    const fighter = system.getFighterStats(r.redId)?.fighter;
+    const fighter = system.getFighterStats(r.userId)?.fighter;
     console.log(
       `${fighter?.name}: ${r.ratingBefore.toFixed(0)} -> ${r.ratingAfter.toFixed(0)} ` +
       `(боёв: ${r.matchesPlayed}, ранг: ${r.rankBefore} -> ${r.rankAfter}, ` +
@@ -677,7 +686,7 @@ function example() {
   );
 
   results2.forEach(r => {
-    const fighter = system.getFighterStats(r.redId)?.fighter;
+    const fighter = system.getFighterStats(r.userId)?.fighter;
     const status = r.matchesPlayed === 0 ? "[не участвовал]" : "";
     console.log(
       `${fighter?.name} ${status}: ${r.ratingBefore.toFixed(0)} -> ${r.ratingAfter.toFixed(0)} ` +

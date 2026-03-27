@@ -1,3 +1,10 @@
+/**
+ * Clash Server - Tournament Management System
+ * Copyright (C) 2026 Clash Contributors
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
 import { nominations, nominationsCN, nominationsRU, weapons, weaponsCN, weaponsRU } from "../../modules/tournaments/schema.js";
 import { cities, citiesCN, citiesRU } from "../../modules/users/schema.js";
 import citiesJSON from "../translations/cities.json"

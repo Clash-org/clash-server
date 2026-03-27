@@ -1,9 +1,16 @@
+/**
+ * Clash Server - Tournament Management System
+ * Copyright (C) 2026 Clash Contributors
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
 import { db } from "../../shared/db/postgres.js";
 import { and, count, eq, inArray, or, sql, asc } from "drizzle-orm";
 import { isAdmin } from "../../shared/utils/helpers.js";
 import { reverseTranslateWeapon, translateCity, translateNomination, translateWeapon } from "../../shared/utils/translations.js";
 import { AdditionsInfoType, ParticipantStatusType, TournamentStatus, TournamentStatusType } from "../../shared/typings/index.js";
-import { nominations, tournamentParticipants, tournaments, Weapon, Nomination, weapons, additionalParticipantsInfo, AdditionalParticipantsInfo, NewTournament, pools, NewPool, nominationsRU, nominationsCN, weaponsRU, weaponsCN } from "./schema.js";
+import { nominations, tournamentParticipants, Weapon, Nomination, weapons, additionalParticipantsInfo, AdditionalParticipantsInfo, NewTournament, pools, NewPool, nominationsRU, nominationsCN, weaponsRU, weaponsCN, tournaments } from "./schema.js";
 import { tournamentRepository } from "./index.js";
 import { NominationType } from "../../shared/utils/rating.js";
 import { User } from "../users/schema.js";
@@ -165,6 +172,47 @@ export class TournamentService {
     }
 
     return results
+  }
+
+  async getTournamentsByUserId(userId: string, lang: string) {
+    const tournamentParticipantsArr = await db.query.tournamentParticipants.findMany({
+      where: eq(tournamentParticipants.userId, userId),
+      with: {
+        tournament: true
+      }
+    })
+
+    const newTournamentParticipantsArr = tournamentParticipantsArr.filter((obj, idx, arr) => idx === arr.findIndex((t) => t.tournamentId === obj.tournamentId))
+
+    const nominationsArr: (Nomination & { weapon: Weapon })[][] = []
+    for (let tournamentParticipant of tournamentParticipantsArr) {
+      nominationsArr.push(await db.query.nominations.findMany({
+        where: eq(nominations.id, tournamentParticipant.nominationId),
+        with: {
+          weapon: true,
+        },
+      }))
+
+    }
+
+    const transformedNominations = new Array(nominationsArr.flat().length);
+    for (let i = 0; i < newTournamentParticipantsArr.length; i++) {
+      // Трансформируем nominations
+      const flatNominations = nominationsArr.flat();
+      for (let j = 0; j < flatNominations.length; j++) {
+        const nom = flatNominations[j];
+        transformedNominations[j] = {
+          ...nom,
+          title: await translateNomination(lang, nom.title),
+          weapon: {
+            ...nom.weapon,
+            title: await translateWeapon(lang, nom.weapon!.title)
+          }
+        };
+      }
+    }
+
+    return newTournamentParticipantsArr.map(t=>({ ...t.tournament, nominations: transformedNominations }))
   }
 
   async getByOrganizerId(id: string, lang: string) {
@@ -329,6 +377,10 @@ export class TournamentService {
       .where(eq(tournaments.id, tournamentId))
       .returning()
     return tournament
+  }
+
+  async setWinners(winners: {[nominationId: number]: string[]}, tournamentId: number) {
+    await db.update(tournaments).set({ winners }).where(eq(tournaments.id, tournamentId))
   }
 
   async updateParticipantsCountAndMatchesCount(tournamentId: number, nominationId: number, participantsCount: number, matchesCount: number) {

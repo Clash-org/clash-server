@@ -1,4 +1,9 @@
-// shared/event-bus.ts
+/**
+ * Clash Server - Tournament Management System
+ * Copyright (C) 2026 Clash Contributors
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 
 import { User } from "../modules/users/schema";
 
@@ -18,6 +23,7 @@ export const TOURNAMENT_EVENTS = {
 
 export const RATING_EVENTS = {
   PROCESS_TOURNAMENT: 'rating.process.tournament',
+  TOURNAMENT_END: 'rating.tournament.end',
   HISTORY_ADDED: "rating.history.added"
 } as const;
 
@@ -83,7 +89,8 @@ export interface EventPayloads {
   [TOURNAMENT_EVENTS.COMPLETED]: { tournamentId: number; };
   [TOURNAMENT_EVENTS.PARTICIPANT_ADDED]: { tournamentId: number; userId: string; nominationId: number };
   [RATING_EVENTS.PROCESS_TOURNAMENT]: { participantsCount: number; matchesCount: number; tournamentId: number, nominationId: number };
-  [RATING_EVENTS.HISTORY_ADDED]: { matchesPlayed: number; redId: string };
+  [RATING_EVENTS.HISTORY_ADDED]: { matchesPlayed: number; userId: string };
+  [RATING_EVENTS.TOURNAMENT_END]: { winners: {[nominationId: number]: string[]}, tournamentId: number }
 }
 
 // Типизированные хелперы

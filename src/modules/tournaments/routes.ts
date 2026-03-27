@@ -1,3 +1,10 @@
+/**
+ * Clash Server - Tournament Management System
+ * Copyright (C) 2026 Clash Contributors
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
 import { tournamentHandlers } from "./handlers.js";
 import { getToken, getTokenPayload } from "../../shared/utils/jwt.js";
 import { tournamentService } from "./index.js";
@@ -151,6 +158,22 @@ export async function tournamentRouter(path: string, method: string, req: Reques
     }
   }
 
+  const participantCountMatch = path.match(/^\/tournaments\/participants\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i);
+  if (participantCountMatch && method === "GET") {
+    try {
+      const token = getToken(req);
+      if (!token) {
+        return Response.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      const id = String(participantCountMatch[1]);
+      const lang = new URL(req.url).searchParams.get("lang") as string
+      const tournaments = await tournamentService.getTournamentsByUserId(id, lang);
+      return Response.json(tournaments);
+    } catch (error: any) {
+      return Response.json({ error: error.message }, { status: 400 });
+    }
+  }
+
   // GET /tournaments/:id
   const tournamentMatch = path.match(/^\/tournaments\/(\d+)$/);
   if (tournamentMatch && method === "GET") {
@@ -190,7 +213,8 @@ export async function tournamentRouter(path: string, method: string, req: Reques
   if (participantMatch && method === "GET") {
     try {
       const tournamentId = parseInt(participantMatch[1]);
-      const nominationIdsStr = new URL(req.url).searchParams.get("nominationIds")
+      const url = new URL(req.url)
+      const nominationIdsStr = url.searchParams.get("nominationIds")
       if (!nominationIdsStr) return Response.json({ error: "Nomination ids not found" }, { status: 400 })
       const nominationIds: number[] = JSON.parse(nominationIdsStr)
       const result = await tournamentHandlers.getParticipants(tournamentId, nominationIds);
@@ -327,6 +351,20 @@ export async function tournamentRouter(path: string, method: string, req: Reques
       }
       const { poolId, ...other } = await req.json();
       const res = await tournamentHandlers.updatePool(poolId, other)
+      return Response.json(res, { status: 201 });
+    } catch (error: any) {
+      return Response.json({ error: error.message }, { status: 400 });
+    }
+  }
+
+  if (path === "/tournaments/pool" && method === "PATCH") {
+    try {
+      const token = getToken(req);
+      if (!token) {
+        return Response.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      const { poolId, isEnd } = await req.json();
+      const res = await tournamentService.updatePoolEnd(poolId, Boolean(isEnd))
       return Response.json(res, { status: 201 });
     } catch (error: any) {
       return Response.json({ error: error.message }, { status: 400 });

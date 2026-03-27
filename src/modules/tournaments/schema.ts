@@ -1,3 +1,10 @@
+/**
+ * Clash Server - Tournament Management System
+ * Copyright (C) 2026 Clash Contributors
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
 import { boolean, integer, json, pgTable, serial, smallint, timestamp, uuid, varchar } from "drizzle-orm/pg-core";
 import { AdditionsInfoType, CurrencyType, HitZonesType, IsAdditionsType, ParticipantCountType, ParticipantStatus, ParticipantStatusType, TournamentStatus, TournamentStatusType, TournamentSystemType } from "../../shared/typings";
 import { cities, users } from "../users/schema";
@@ -49,6 +56,7 @@ export const tournaments = pgTable("tournaments", {
   title: varchar("title", { length: 255 }).notNull(),
   nominationsIds: json("nominations_ids").$type<number[]>().notNull(),
   organizerId: uuid("organizer_id").references(() => users.id).notNull(),
+  winners: json("winners").$type<{[nominationId: number]: string[]}>().default({[1]: ["48d2ba32-b612-49bd-8919-713cf4cb8ee2","402acee3-596a-49e7-802f-1539d003643c","38e297dc-7748-49bb-a1de-053a05158f46"]}),
   image: varchar("image").default("").notNull(),
   moderatorsIds: json("moderators_ids").$type<string[]>().default([]),
   status: varchar("status", { length: 20 }).$type<TournamentStatusType>().default(TournamentStatus.PENDING).notNull(),
@@ -144,7 +152,7 @@ export const tournamentParticipantsRelations = relations(tournamentParticipants,
     fields: [tournamentParticipants.tournamentId],
     references: [tournaments.id],
   }),
-  nominations: one(nominations, {
+  nomination: one(nominations, {
     fields: [tournamentParticipants.nominationId],
     references: [nominations.id],
   }),

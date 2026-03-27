@@ -1,5 +1,12 @@
+/**
+ * Clash Server - Tournament Management System
+ * Copyright (C) 2026 Clash Contributors
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
 import { ratingRepository, ratingService } from "./index.js";
-import { predictMatchSchema, processTournamentSchema } from "./validation.js"
+import { mainDataSchema, matchSchema, predictMatchSchema, processTournamentSchema } from "./validation.js"
 import { db } from "../../shared/db/postgres.js"
 import { TournamentMatch } from "../../shared/utils/rating.js";
 
@@ -7,11 +14,6 @@ import { TournamentMatch } from "../../shared/utils/rating.js";
 await ratingService.initialize();
 
 export const ratingHandlers = {
-  // ========== LEADERBOARD ==========
-  async getLeaderboard(weaponId: number, nominationId: number, limit: number) {
-    return await ratingService.getLeaderboard(weaponId, nominationId, limit);
-  },
-
   // ========== USER HISTORY & STATS ==========
   async getUserHistory(token: string, userId: string, weaponId: number, nominationId: number) {
     return await ratingService.getUserRatingHistory(token, userId, weaponId, nominationId);
@@ -43,35 +45,20 @@ export const ratingHandlers = {
       ? new Date(input.tournamentDate)
       : undefined;
 
-    const matches: TournamentMatch[]|undefined = input.matches?.map((m) => ({
-      redId: m.redId,
-      blueId: m.blueId,
-      resultRed: m.resultRed as 0 | 0.5 | 1,
-      scoreRed: m.scoreRed,
-      scoreBlue: m.scoreBlue,
-      doubleHits: m.doubleHits,
-      warningsRed: m.warningsRed,
-      warningsBlue: m.warningsBlue,
-      protestsRed: m.protestsRed,
-      protestsBlue: m.protestsBlue
-    }));
-
     const results = await ratingService.processTournament(
       token,
       input.tournamentId,
       input.weaponId,
       input.nominationId,
-      matches,
-      tournamentDate,
-      input.startedAt ? new Date(input.startedAt) : undefined,
-      input.endedAt ? new Date(input.endedAt) : undefined,
-      input.metadata
+      input.winners,
+      input.matches as TournamentMatch[]|undefined,
+      tournamentDate
     );
 
     return {
       processed: results.length,
       results: results.map((r) => ({
-        userId: r.redId,
+        userId: r.userId,
         user: r.user,
         weaponSubtype: r.weaponSubtype,
         ratingChange: Math.round(r.ratingAfter - r.ratingBefore),
@@ -82,6 +69,11 @@ export const ratingHandlers = {
         matchesPlayed: r.matchesPlayed,
       })),
     };
+  },
+
+  async createMatch(body: unknown) {
+    const input = matchSchema.merge(mainDataSchema).parse(body)
+    return await ratingService.createMatch(input)
   },
 
   // ========== PREDICTION ==========
@@ -101,15 +93,15 @@ export const ratingHandlers = {
 
     const prediction = ratingService
       .getSystem()
-      .predictMatch(input.fighterRedId, input.fighterBlueId, weaponType, category);
+      .predictMatch(input.redId, input.blueId, weaponType, category);
 
     return {
       fighterRed: {
-        id: input.fighterRedId,
+        id: input.redId,
         winProbability: Math.round(prediction.fighterAWin * 100),
       },
       fighterBlue: {
-        id: input.fighterBlueId,
+        id: input.blueId,
         winProbability: Math.round(prediction.fighterBWin * 100),
       },
     };
@@ -135,10 +127,6 @@ export const ratingHandlers = {
       createdAt: s.createdAt,
       note: s.note,
     }));
-  },
-
-  async getMatches(tournamentId: number, nominationId: number) {
-    return await ratingService.getMatches(tournamentId, nominationId)
   },
 
   // ========== REFERENCE DATA ==========

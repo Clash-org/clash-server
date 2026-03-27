@@ -1,3 +1,10 @@
+/**
+ * Clash Server - Tournament Management System
+ * Copyright (C) 2026 Clash Contributors
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
 import { seedDatabase } from "./shared/db/seed.js";
 import { authRouter, userRouter, cityRouter, clubRouter } from "./modules/users/routes.js";
 import { ratingRouter } from "./modules/ratings/routes.js";
@@ -5,7 +12,7 @@ import { tournamentRouter } from "./modules/tournaments/routes.js";
 import { translateRouter } from "./modules/ai/routes.js";
 import { uploadRouter } from "./modules/upload/routes.js";
 import { withCors, corsResponse, isPreflight, preflightResponse } from "./shared/utils/cors.js";
-import { initUsersModule, userService } from "./modules/users/index.js";
+import { initUsersModule } from "./modules/users/index.js";
 import { initTournamentsModule } from "./modules/tournaments/index.js";
 import { initRatingsModule, ratingService } from "./modules/ratings/index.js";
 

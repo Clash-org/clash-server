@@ -1,5 +1,11 @@
+/**
+ * Clash Server - Tournament Management System
+ * Copyright (C) 2026 Clash Contributors
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
 import { eq } from "drizzle-orm";
-import { cityService } from "../../modules/users";
 import { db } from "../db/postgres";
 import { nominations, nominationsCN, nominationsRU, weapons, weaponsCN, weaponsRU } from "../../modules/tournaments/schema";
 import { cities, citiesCN, citiesRU } from "../../modules/users/schema";

@@ -1,16 +1,24 @@
+/**
+ * Clash Server - Tournament Management System
+ * Copyright (C) 2026 Clash Contributors
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
 
 import { ratingHandlers } from "./handlers.js";
 import { getToken } from "../../shared/utils/jwt.js"
+import { ratingService } from "./index.js";
 
 export async function ratingRouter(path: string, method: string, req: Request) {
   // ========== LEADERBOARD ROUTES ==========
-  // GET /ratings/leaderboard?weaponId=1&nominationId=2&limit=100
+  // GET /ratings/leaderboard?weaponId=1&nominationId=2&limit=20&page=1
   if (path === "/ratings/leaderboard" && method === "GET") {
     try {
       const url = new URL(req.url);
       const weaponId = parseInt(url.searchParams.get("weaponId") || "0");
       const nominationId = parseInt(url.searchParams.get("nominationId") || "0");
-      const limit = parseInt(url.searchParams.get("limit") || "100");
+      const page = parseInt(url.searchParams.get("page") || "1");
+      const limit = parseInt(url.searchParams.get("limit") || "20");
 
       if (!weaponId || !nominationId) {
         return Response.json(
@@ -19,9 +27,10 @@ export async function ratingRouter(path: string, method: string, req: Request) {
         );
       }
 
-      const leaderboard = await ratingHandlers.getLeaderboard(
+      const leaderboard = await ratingService.getLeaderboard(
         weaponId,
         nominationId,
+        page,
         limit
       );
       return Response.json(leaderboard);
@@ -151,12 +160,26 @@ export async function ratingRouter(path: string, method: string, req: Request) {
     }
   }
 
-  if (path === "/match" && method === "GET") {
+  if (path === "/matches" && method === "GET") {
     try {
       const tournamentId = parseInt(String(new URL(req.url).searchParams.get("tournamentId")));
       const nominationId = parseInt(String(new URL(req.url).searchParams.get("nominationId")));
-      const matches = ratingHandlers.getMatches(tournamentId, nominationId)
+      const matches = await ratingService.getMatches(tournamentId, nominationId)
       return Response.json(matches);
+    } catch (error: any) {
+      return Response.json({ error: error.message }, { status: 500 });
+    }
+  }
+
+  if (path === "/matches" && method === "POST") {
+    try {
+      const token = getToken(req)
+      if (!token) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+      }
+      const body = await req.json();
+      const match = ratingHandlers.createMatch(body)
+      return Response.json(match);
     } catch (error: any) {
       return Response.json({ error: error.message }, { status: 500 });
     }

@@ -1,8 +1,14 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+/**
+ * Clash Server - Tournament Management System
+ * Copyright (C) 2026 Clash Contributors
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "../../shared/db/postgres";
 import { nominationService, tournamentService, weaponService } from "../tournaments";
 import { userService } from "../users";
-import { users } from "../users/schema";
 import { matches, userRatings } from "./schema";
 
 export class RatingRepository {
@@ -50,8 +56,8 @@ export class RatingRepository {
                 eq(userRatings.weaponId, weaponId),
                 eq(userRatings.nominationId, nominationId)
               ),
-              orderBy: [desc(userRatings.rating)],
-              limit,
+              orderBy: desc(userRatings.rating),
+              // limit,
               with: {
                 user: {
                   columns: {
@@ -70,8 +76,8 @@ export class RatingRepository {
           eq(matches.nominationId, nominationId)
         ),
         columns: {
-          fighterRedId: false,
-          fighterBlueId: false
+          redId: false,
+          blueId: false
         },
         with: {
           red: true,

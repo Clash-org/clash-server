@@ -1,3 +1,10 @@
+/**
+ * Clash Server - Tournament Management System
+ * Copyright (C) 2026 Clash Contributors
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
 import {
   pgTable,
   uuid,
@@ -8,7 +15,8 @@ import {
   json,
   real,
   uniqueIndex,
-  index
+  index,
+  smallint
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { MatchMetadata, SystemState, TopUsers } from "../../shared/utils/rating"
@@ -111,10 +119,10 @@ export const matches = pgTable("matches", {
     .notNull(),
 
   // Участники
-  fighterRedId: uuid("fighter_red_id")
+  redId: uuid("red_id")
     .references(() => users.id)
     .notNull(),
-  fighterBlueId: uuid("fighter_blue_id")
+  blueId: uuid("blue_id")
     .references(() => users.id)
     .notNull(),
 
@@ -135,10 +143,7 @@ export const matches = pgTable("matches", {
   warningsRed: integer("warnings_red").default(0),
   warningsBlue: integer("warnings_blue").default(0),
   type: varchar("type", { length: 20 }).$type<MatchTypesType>().default("pool"),
-
-  // Время
-  startedAt: timestamp("started_at"),
-  endedAt: timestamp("ended_at"),
+  poolIndex: smallint("pool_index").default(0),
 
   // Дополнительные данные (видео, заметки судьи)
   metadata: json("metadata").$type<MatchMetadata>(),
@@ -146,7 +151,7 @@ export const matches = pgTable("matches", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
   tournamentIdx: index("matches_tournament_idx").on(table.tournamentId),
-  fightersIdx: index("matches_fighters_idx").on(table.fighterRedId, table.fighterBlueId),
+  fightersIdx: index("matches_fighters_idx").on(table.redId, table.blueId),
   nominationIdx: index("matches_nomination_idx")
     .on(table.tournamentId, table.nominationId),
 }));
@@ -224,11 +229,11 @@ export const matchesRelations = relations(matches, ({ one }) => ({
     references: [tournaments.id],
   }),
   red: one(users, {
-    fields: [matches.fighterRedId],
+    fields: [matches.redId],
     references: [users.id]
   }),
   blue: one(users, {
-    fields: [matches.fighterBlueId],
+    fields: [matches.blueId],
     references: [users.id]
   }),
   nomination: one(nominations, {
