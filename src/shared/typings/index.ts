@@ -51,3 +51,18 @@ export type HitZonesType = {
     arms: number;
     legs: number;
 }
+
+export interface SyncConfig {
+  rpcUrl: string;
+  servicePrivateKey: string;
+  userContractAddress: string;
+  tournamentContractAddress: string;
+  syncInterval: string;
+  batchSize: number;
+  confirmations: number;
+}
+
+export interface Manifest {
+  serversIds: number[];
+  prices?: number[];
+}

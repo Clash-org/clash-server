@@ -6,7 +6,7 @@
  */
 
 import { db } from "../../shared/db/postgres.js";
-import { and, count, eq, inArray, or, sql, asc } from "drizzle-orm";
+import { and, count, eq, inArray, or, sql, asc, desc } from "drizzle-orm";
 import { isAdmin } from "../../shared/utils/helpers.js";
 import { reverseTranslateWeapon, translateCity, translateNomination, translateWeapon } from "../../shared/utils/translations.js";
 import { AdditionsInfoType, ParticipantStatusType, TournamentStatus, TournamentStatusType } from "../../shared/typings/index.js";
@@ -20,21 +20,45 @@ function getNewAdditionsWeapons(info: AdditionsInfoType, weapons: string[]) {
   return Object.keys(info).reduce((sum, weapon, idx)=>({ ...sum, [weapons[idx]]: info[weapon] }), {})
 }
 
+async function getModerators(moderatorsIds: string[]| null | undefined) {
+  const moderators: User[] = []
+  if (moderatorsIds) {
+    for (let moderatorId of moderatorsIds) {
+      const user = await tournamentRepository.getUserById(moderatorId)
+      if (user)
+        moderators.push(user)
+    }
+  }
+  return moderators
+}
+
 export class WeaponService {
   async getAll() {
     return await db.select().from(weapons);
   }
 
-  async create(title: string) {
+  async create(title: string, actorId: string) {
+    if (!await isAdmin(actorId)) {
+      throw new Error("You don't admin")
+    }
     const translates = await tournamentRepository.getAiTranslateWeapon(title)
     const [weapon] = await db.insert(weapons).values({ title: translates.en }).returning()
-    await db.insert(weaponsRU).values({ title: translates.ru })
-    await db.insert(weaponsCN).values({ title: translates.cn })
+    await db.insert(weaponsRU).values({ title: translates.ru, id: weapon.id })
+    await db.insert(weaponsCN).values({ title: translates.zh, id: weapon.id })
     return weapon.id
   }
 
   async getById(id: number) {
     return await db.query.weapons.findFirst({ where: eq(weapons.id, id) })
+  }
+
+  async delete(id: number, actorId: string) {
+    if (!await isAdmin(actorId))
+      throw new Error("You don't admin")
+
+    await db.delete(weapons).where(eq(weapons.id, id))
+
+    return { success: true }
   }
 }
 
@@ -52,10 +76,10 @@ export class NominationService {
       const { weaponId, ...otherData } = r
         result[i] = {
           ...otherData,
-          title: await translateNomination(lang, otherData.title),
+          title: await translateNomination(lang, otherData.title, otherData.id),
           weapon: otherData.weapon ? {
             ...otherData.weapon,
-            title: await translateWeapon(lang, otherData.weapon.title)
+            title: await translateWeapon(lang, otherData.weapon.title, otherData.weapon.id)
           } : null
         }
     }
@@ -63,29 +87,41 @@ export class NominationService {
     return result
   }
 
-  async create(title: NominationType, weaponId: number) {
+  async create(title: NominationType, weaponId: number, actorId: string) {
+    if (!await isAdmin(actorId)) {
+      throw new Error("You don't admin")
+    }
     const translates = await tournamentRepository.getAiTranslateWeapon(title)
-    await db.insert(nominations).values({ title: translates.en, weaponId })
-    await db.insert(nominationsRU).values({ title: translates.ru })
-    await db.insert(nominationsCN).values({ title: translates.cn })
+    const [nom] = await db.insert(nominations).values({ title: translates.en, weaponId }).returning()
+    await db.insert(nominationsRU).values({ title: translates.ru, id: nom.id })
+    await db.insert(nominationsCN).values({ title: translates.zh, id: nom.id })
     return { success: true };
   }
 
   async getById(id: number) {
     return await db.query.nominations.findFirst({ where: eq(nominations.id, id), with: { weapon: true } })
   }
+
+  async delete(id: number, actorId: string) {
+    if (!await isAdmin(actorId))
+      throw new Error("You don't admin")
+
+    await db.delete(nominations).where(eq(nominations.id, id))
+
+    return { success: true }
+  }
 }
 
 export class TournamentService {
-  async getAll(lang: string, short: boolean, page: number) {
-    const PAGE_SIZE = 10
+  async getAll(lang: string, short: boolean, page: number, pageSize=10) {
     const tournamentsArray = await db.query.tournaments.findMany({
       where: eq(tournaments.isInternal, false),
       with: {
         city: true,
       },
-      limit: PAGE_SIZE * page,
-      offset: (page - 1) * PAGE_SIZE,
+      limit: pageSize,
+      offset: (page - 1) * pageSize,
+      orderBy: [desc(tournaments.createdAt), desc(tournaments.date)]
     });
     const tournamentsCount = await this.getCount()
     if (short) {
@@ -99,7 +135,7 @@ export class TournamentService {
           image: tournament.image,
           status: tournament.status,
           organizer: await tournamentRepository.getUserById(tournament.organizerId),
-          city: await translateCity(lang, tournament.city.title)
+          city: await translateCity(lang, tournament.city.title, tournament.city.id)
         };
       }
 
@@ -116,7 +152,7 @@ export class TournamentService {
         ...tournament,
         city: {
           ...tournament.city,
-          title: await translateCity(lang, tournament.city.title)
+          title: await translateCity(lang, tournament.city.title, tournament.city.id)
         }
       };
     }
@@ -146,10 +182,10 @@ export class TournamentService {
       const nom = nominationsArr[i];
       transformedNominations[i] = {
         ...nom,
-        title: await translateNomination(lang, nom.title),
+        title: await translateNomination(lang, nom.title, nom.id),
         weapon: {
           ...nom.weapon,
-          title: await translateWeapon(lang, nom.weapon!.title)
+          title: await translateWeapon(lang, nom.weapon!.title, nom.weapon!.id)
         }
       };
     }
@@ -158,7 +194,7 @@ export class TournamentService {
       ...otherData,
       city: {
         ...tournament.city,
-        title: await translateCity(lang, tournament.city.title)
+        title: await translateCity(lang, tournament.city.title, tournament.city.id)
       },
       nominations: transformedNominations,
       participants: tournament.participants.map(p => p.user)
@@ -203,10 +239,10 @@ export class TournamentService {
         const nom = flatNominations[j];
         transformedNominations[j] = {
           ...nom,
-          title: await translateNomination(lang, nom.title),
+          title: await translateNomination(lang, nom.title, nom.id),
           weapon: {
             ...nom.weapon,
-            title: await translateWeapon(lang, nom.weapon!.title)
+            title: await translateWeapon(lang, nom.weapon!.title, nom.weapon!.id)
           }
         };
       }
@@ -221,13 +257,16 @@ export class TournamentService {
     )
 
     const nominationsArr: (Nomination & { weapon: Weapon })[][] = []
-    const moderators: User[] = []
-    for (let tournament of data.rows) {
+    const moderators: User[][] = []
+    for (let [i, tournament] of data.rows.entries()) {
       for (let moderatorId of tournament["moderators_ids"]) {
-        moderators.push(await tournamentRepository.getUserById(moderatorId))
+        if (!moderators[i]) {
+          moderators[i] = []
+        }
+        moderators[i].push(await tournamentRepository.getUserById(moderatorId))
       }
       nominationsArr.push(await db.query.nominations.findMany({
-        where: inArray(nominations.id, tournament["nominations_ids"]),
+        where: inArray(nominations.id, Array.from(tournament["nominations_ids"])),
         with: {
           weapon: true,
         },
@@ -240,16 +279,16 @@ export class TournamentService {
       const d = data.rows[i];
 
       // Трансформируем nominations
-      const transformedNominations = new Array(nominationsArr.flat().length);
-      const flatNominations = nominationsArr.flat();
+      const flatNominations = nominationsArr[i];
+      const transformedNominations = new Array(flatNominations.length);
       for (let j = 0; j < flatNominations.length; j++) {
         const nom = flatNominations[j];
         transformedNominations[j] = {
           ...nom,
-          title: await translateNomination(lang, nom.title),
+          title: await translateNomination(lang, nom.title, nom.id),
           weapon: {
             ...nom.weapon,
-            title: await translateWeapon(lang, nom.weapon!.title)
+            title: await translateWeapon(lang, nom.weapon!.title, nom.weapon!.id)
           }
         };
       }
@@ -274,7 +313,7 @@ export class TournamentService {
         isAdditions: d.is_additions,
         isInternal: d.is_internal,
         moderatorsIds: d.moderators_ids,
-        moderators: moderators,
+        moderators: moderators[i],
         nominations: transformedNominations,
         createdAt: d.created_at
       };
@@ -337,7 +376,7 @@ export class TournamentService {
   async create(data: NewTournament) {
     const [tournament] = await db
       .insert(tournaments)
-      .values(data)
+      .values({ ...data, syncedToBlockchain: false })
       .returning();
 
     if (data.moderatorsIds) {
@@ -350,21 +389,33 @@ export class TournamentService {
 
   async update(data: Omit<NewTournament, "organizerId"> & { tournamentId: number }) {
     const { tournamentId, ...other } = data
+
+    const beforeTournament = await db.query.tournaments.findFirst({
+      where: eq(tournaments.id, tournamentId),
+      columns: {
+        moderatorsIds: true
+      }
+    })
+
+    const deleteModeratorsIds: string[] = [...beforeTournament.moderatorsIds ? beforeTournament.moderatorsIds : [], ...data.moderatorsIds].filter((item, index, arr) =>
+      arr.indexOf(item) === index
+    )
+
+    for (let moderatorId of deleteModeratorsIds) {
+      emitEvent(TOURNAMENT_EVENTS.UPDATED, { tournamentId: beforeTournament.id, userId: moderatorId })
+    }
     const [tournament] = await db
       .update(tournaments)
-      .set(other)
+      .set({ ...other, updatedAt: new Date(), syncedToBlockchain: false })
       .where(eq(tournaments.id, tournamentId))
       .returning()
 
-    const moderators: User[] = []
     if (data.moderatorsIds) {
       for (let moderatorId of data.moderatorsIds) {
         emitEvent(TOURNAMENT_EVENTS.CREATED, { tournamentId: tournament.id, userId: moderatorId })
-        const user = await tournamentRepository.getUserById(moderatorId)
-        if (user)
-          moderators.push(user)
       }
     }
+    const moderators = await getModerators(data.moderatorsIds)
     const { moderatorsIds, ...t } = tournament
     return {...t, moderators }
   }
@@ -373,14 +424,16 @@ export class TournamentService {
     const { tournamentId, ...other } = data
     const [tournament] = await db
       .update(tournaments)
-      .set(other)
+      .set({ ...other, updatedAt: new Date(), syncedToBlockchain: false })
       .where(eq(tournaments.id, tournamentId))
       .returning()
-    return tournament
+    const moderators = await getModerators(tournament.moderatorsIds)
+    const { moderatorsIds, ...rest } = tournament
+    return {...rest, moderators}
   }
 
   async setWinners(winners: {[nominationId: number]: string[]}, tournamentId: number) {
-    await db.update(tournaments).set({ winners }).where(eq(tournaments.id, tournamentId))
+    await db.update(tournaments).set({ winners, updatedAt: new Date(), syncedToBlockchain: false }).where(eq(tournaments.id, tournamentId))
   }
 
   async updateParticipantsCountAndMatchesCount(tournamentId: number, nominationId: number, participantsCount: number, matchesCount: number) {
@@ -396,7 +449,9 @@ export class TournamentService {
     await db.update(tournaments)
       .set({
         participantsCountInFact: bufParticipantsCountInFact,
-        matchesCount: bufMatchesCount
+        matchesCount: bufMatchesCount,
+        updatedAt: new Date(),
+        syncedToBlockchain: false
       })
       .where(eq(tournaments.id, tournamentId));
   }

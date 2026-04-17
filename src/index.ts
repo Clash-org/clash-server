@@ -15,6 +15,7 @@ import { withCors, corsResponse, isPreflight, preflightResponse } from "./shared
 import { initUsersModule } from "./modules/users/index.js";
 import { initTournamentsModule } from "./modules/tournaments/index.js";
 import { initRatingsModule, ratingService } from "./modules/ratings/index.js";
+import { specialRouter } from "./modules/specials/routes.js";
 
 const PORT = parseInt(process.env.PORT || "3000");
 
@@ -36,12 +37,8 @@ const server = Bun.serve({
     // Preflight OPTIONS запрос
     if (isPreflight(req)) return preflightResponse(req);
 
-    // Health check
-    if (path === "/health" && method === "GET") {
-      return corsResponse({ status: "ok" }, 200, req);
-    }
-
     const routers = [
+      specialRouter,
       authRouter,
       userRouter,
       cityRouter,

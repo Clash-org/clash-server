@@ -32,10 +32,15 @@ export const citySchema = z.object({
   title: z.string().min(1, "Title is required").max(255),
 });
 
+export const cityUpdateSchema = z.object({
+  id: z.number().int().positive()
+}).merge(citySchema)
+
 export const userUpdateSchema = z.object({
   id: z.string().uuid(),
   email: z.string().optional(),
-  username: z.string().min(3).max(100).optional(),
+  username: z.string().optional(),
+  image: z.string().optional(),
   password: z.string().optional(), // bcrypt hash обычно 60 символов
   gender: z.boolean().optional(),
   clubId: z.number().int().positive().optional(),

@@ -24,9 +24,9 @@ export const tournamentHandlers = {
     return await weaponService.getAll();
   },
 
-  async createWeapon(body: unknown) {
+  async createWeapon(body: unknown, actorId: string) {
     const input = weaponSchema.parse(body);
-    return await weaponService.create(input.title);
+    return await weaponService.create(input.title, actorId);
   },
 
   // ========== NOMINATIONS ==========
@@ -34,24 +34,12 @@ export const tournamentHandlers = {
     return await nominationService.getAll(lang);
   },
 
-  async createNomination(body: unknown) {
+  async createNomination(body: unknown, actorId: string) {
     const input = nominationSchema.parse(body);
-    return await nominationService.create(input.title, input.weaponId);
+    return await nominationService.create(input.title, input.weaponId, actorId);
   },
 
   // ========== TOURNAMENTS ==========
-  async getAllTournaments(lang: string, short: boolean, page: number) {
-    return await tournamentService.getAll(lang, short, page);
-  },
-
-  async getByOrganizerId(id: string, lang: string) {
-    return await tournamentService.getByOrganizerId(id, lang)
-  },
-
-  async getTournamentById(id: number, lang: string) {
-    return await tournamentService.getById(id, lang);
-  },
-
   async createTournament(body: unknown, organizerId: string) {
     const input = tournamentSchema.parse(body);
     return await tournamentService.create({

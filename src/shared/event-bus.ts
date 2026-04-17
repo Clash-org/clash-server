@@ -86,11 +86,12 @@ export interface EventPayloads {
   [USER_EVENTS.UPDATED]: { userId: string; changes: Partial<User> };
   [USER_EVENTS.DELETED]: { userId: string };
   [TOURNAMENT_EVENTS.CREATED]: { tournamentId: number; userId: string; };
+  [TOURNAMENT_EVENTS.UPDATED]: { tournamentId: number; userId: string; };
   [TOURNAMENT_EVENTS.COMPLETED]: { tournamentId: number; };
   [TOURNAMENT_EVENTS.PARTICIPANT_ADDED]: { tournamentId: number; userId: string; nominationId: number };
   [RATING_EVENTS.PROCESS_TOURNAMENT]: { participantsCount: number; matchesCount: number; tournamentId: number, nominationId: number };
   [RATING_EVENTS.HISTORY_ADDED]: { matchesPlayed: number; userId: string };
-  [RATING_EVENTS.TOURNAMENT_END]: { winners: {[nominationId: number]: string[]}, tournamentId: number }
+  [RATING_EVENTS.TOURNAMENT_END]: { winners: {[nominationId: number]: string[]}, tournamentId: number };
 }
 
 // Типизированные хелперы

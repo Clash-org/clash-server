@@ -19,13 +19,13 @@ export const weapons = pgTable("weapons", {
 });
 
 export const weaponsRU = pgTable("weapons_ru", {
-  id: serial("id").primaryKey(),
+  id: integer("id").references(() => weapons.id, { onDelete: "cascade" }).primaryKey(),
   title: varchar("title", { length: 255 }).$type<WeaponType>().notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const weaponsCN = pgTable("weapons_cn", {
-  id: serial("id").primaryKey(),
+  id: integer("id").references(() => weapons.id, { onDelete: "cascade" }).primaryKey(),
   title: varchar("title", { length: 255 }).$type<WeaponType>().notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -34,19 +34,19 @@ export const nominations = pgTable("nominations", {
   id: serial("id").primaryKey(),
   title: varchar("title", { length: 255 }).$type<NominationType>().notNull(),
   weaponId: integer("weapon_id").references(() => weapons.id, {
-    onDelete: 'set null' // при удалении оружия, связь обнуляется
+    onDelete: "cascade"
   }).notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const nominationsRU = pgTable("nominations_ru", {
-  id: serial("id").primaryKey(),
+  id: integer("id").references(() => nominations.id, { onDelete: "cascade" }).primaryKey(),
   title: varchar("title", { length: 255 }).$type<NominationType>().notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const nominationsCN = pgTable("nominations_cn", {
-  id: serial("id").primaryKey(),
+  id: integer("id").references(() => nominations.id, { onDelete: "cascade" }).primaryKey(),
   title: varchar("title", { length: 255 }).$type<NominationType>().notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -56,7 +56,7 @@ export const tournaments = pgTable("tournaments", {
   title: varchar("title", { length: 255 }).notNull(),
   nominationsIds: json("nominations_ids").$type<number[]>().notNull(),
   organizerId: uuid("organizer_id").references(() => users.id).notNull(),
-  winners: json("winners").$type<{[nominationId: number]: string[]}>().default({[1]: ["48d2ba32-b612-49bd-8919-713cf4cb8ee2","402acee3-596a-49e7-802f-1539d003643c","38e297dc-7748-49bb-a1de-053a05158f46"]}),
+  winners: json("winners").$type<{[nominationId: number]: string[]}>().default({}),
   image: varchar("image").default("").notNull(),
   moderatorsIds: json("moderators_ids").$type<string[]>().default([]),
   status: varchar("status", { length: 20 }).$type<TournamentStatusType>().default(TournamentStatus.PENDING).notNull(),
@@ -72,6 +72,18 @@ export const tournaments = pgTable("tournaments", {
   isAdditions: json("is_additions").$type<IsAdditionsType>().default({}),
   isInternal: boolean("is_internal").default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  // ========== ПОЛЯ ДЛЯ БЛОКЧЕЙН СИНХРОНИЗАЦИИ ==========
+  // Хеш данных турнира в блокчейне
+  blockchainHash: varchar("blockchain_hash", { length: 66 }),
+  // Статус синхронизации
+  syncedToBlockchain: boolean("synced_to_blockchain").default(false),
+  syncedFromBlockchain: boolean("synced_from_blockchain").default(false),
+  // Временные метки
+  blockchainSyncedAt: timestamp("blockchain_synced_at"),
+  blockchainUpdatedAt: timestamp("blockchain_updated_at"),
+  // Хеш транзакции
+  blockchainTxHash: varchar("blockchain_tx_hash", { length: 66 })
 });
 
 export const tournamentParticipants = pgTable("tournament_participants", {
@@ -103,6 +115,8 @@ export const pools = pgTable("pools", {
   moderatorId: uuid("moderator_id").references(() => users.id).notNull(),
   pairsIds: json("pairs_ids").$type<[string, string][]>().notNull(),
   isEnd: boolean("is_end").default(false),
+  isPoolRating: boolean("is_pool_rating").default(true),
+  poolCountDelete: smallint("pool_count_delete").default(1),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

@@ -260,7 +260,8 @@ export class RatingService {
               protestsBlue: match.protestsBlue,
               type: match.type,
               poolIndex: match.poolIndex,
-              metadata: match.metadata
+              metadata: match.metadata,
+              syncedToBlockchain: false
             })
 
             console.log(`[RatingService] Создан матч ${insertedMatch.id}: ${match.redId} vs ${match.blueId} (${match.scoreRed}:${match.scoreBlue})`);
@@ -282,7 +283,8 @@ export class RatingService {
             previousRank: result.rankBefore,
             lastTournamentId: tournamentId,
             lastTournamentAt: date,
-            updatedAt: new Date()
+            updatedAt: new Date(),
+            syncedToBlockchain: false
           })
           .onConflictDoUpdate({
             target: [
@@ -299,7 +301,8 @@ export class RatingService {
               previousRank: result.rankBefore,
               lastTournamentId: tournamentId,
               lastTournamentAt: date,
-              updatedAt: new Date()
+              updatedAt: new Date(),
+              syncedToBlockchain: false
             }
           });
 
@@ -352,7 +355,8 @@ export class RatingService {
       warningsBlue: data.warningsBlue ?? 0,
       type: data.type ?? "pool",
       metadata: data.metadata ?? {},
-      poolIndex: data.poolIndex
+      poolIndex: data.poolIndex,
+      syncedToBlockchain: false
     }).returning();
 
     return match;

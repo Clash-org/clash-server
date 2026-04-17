@@ -10,6 +10,7 @@ import { and, eq } from "drizzle-orm";
 import { User } from "./schema";
 import { tournamentParticipants } from "../tournaments/schema";
 import { ParticipantStatus } from "../../shared/typings";
+import { aiService } from "../ai";
 
 export class UserRepository {
     async getUsersCountFromParticipants(users: User[]) {
@@ -30,5 +31,9 @@ export class UserRepository {
             })
         }
         return result
+    }
+
+    async translateCity(title: string) {
+        return await aiService.translateCity(title)
     }
 }

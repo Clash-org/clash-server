@@ -7,7 +7,10 @@
 
 import { tournamentHandlers } from "./handlers.js";
 import { getToken, getTokenPayload } from "../../shared/utils/jwt.js";
-import { tournamentService } from "./index.js";
+import { nominationService, tournamentService, weaponService } from "./index.js";
+import { getContract, parseContractError } from "../../shared/utils/helpers.js";
+import addresses from "../../../blockchain/addresses.json"
+import ServerABI from "../../../blockchain/abi/ClashServer.json"
 
 export async function tournamentRouter(path: string, method: string, req: Request) {
   // ========== WEAPONS ==========
@@ -25,12 +28,36 @@ export async function tournamentRouter(path: string, method: string, req: Reques
 
   if (path === "/weapons" && method === "POST") {
     try {
+      const token = getToken(req);
+      if (!token) {
+        return Response.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      const payload = await getTokenPayload(token);
+      if (!payload) return Response.json({ error: "Id is null" }, { status: 404 });
+      const actorId = payload.sub;
       const body = await req.json();
-      const weapon = await tournamentHandlers.createWeapon(body);
+      const weapon = await tournamentHandlers.createWeapon(body, actorId);
       return Response.json(JSON.stringify(weapon), {
         status: 201,
         headers: { "Content-Type": "application/json" },
       });
+    } catch (error: any) {
+      return Response.json(JSON.stringify({ error: error.message }), { status: 400 });
+    }
+  }
+
+  if (path === "/weapons" && method === "DELETE") {
+    try {
+      const token = getToken(req);
+      if (!token) {
+        return Response.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      const payload = await getTokenPayload(token);
+      if (!payload) return Response.json({ error: "Id is null" }, { status: 404 });
+      const actorId = payload.sub;
+      const { id } = await req.json();
+      const res = await weaponService.delete(id, actorId);
+      return Response.json(JSON.stringify(res));
     } catch (error: any) {
       return Response.json(JSON.stringify({ error: error.message }), { status: 400 });
     }
@@ -53,12 +80,36 @@ export async function tournamentRouter(path: string, method: string, req: Reques
 
   if (path === "/nominations" && method === "POST") {
     try {
+      const token = getToken(req);
+      if (!token) {
+        return Response.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      const payload = await getTokenPayload(token);
+      if (!payload) return Response.json({ error: "Id is null" }, { status: 404 });
+      const actorId = payload.sub;
       const body = await req.json();
-      const nomination = await tournamentHandlers.createNomination(body);
+      const nomination = await tournamentHandlers.createNomination(body, actorId);
       return Response.json(JSON.stringify(nomination), {
         status: 201,
         headers: { "Content-Type": "application/json" },
       });
+    } catch (error: any) {
+      return Response.json(JSON.stringify({ error: error.message }), { status: 400 });
+    }
+  }
+
+  if (path === "/nominations" && method === "DELETE") {
+    try {
+      const token = getToken(req);
+      if (!token) {
+        return Response.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      const payload = await getTokenPayload(token);
+      if (!payload) return Response.json({ error: "Id is null" }, { status: 404 });
+      const actorId = payload.sub;
+      const { id } = await req.json();
+      const res = await nominationService.delete(id, actorId);
+      return Response.json(JSON.stringify(res));
     } catch (error: any) {
       return Response.json(JSON.stringify({ error: error.message }), { status: 400 });
     }
@@ -71,11 +122,12 @@ export async function tournamentRouter(path: string, method: string, req: Reques
       const lang = url.searchParams.get("lang") as string
       const short = Boolean(url.searchParams.get("short"))
       const page = Number(url.searchParams.get("page"))
+      const pageSize = Number(url.searchParams.get("pageSize"))
       const ids = JSON.parse(url.searchParams.get("ids") || "[]")
       if (ids.length) {
         return Response.json(await tournamentService.getByIds(ids, lang));
       }
-      return Response.json(await tournamentHandlers.getAllTournaments(lang, short, page))
+      return Response.json(await tournamentService.getAll(lang, short, page, pageSize))
     } catch (error: any) {
       return Response.json({ error: error.message }, { status: 500 });
     }
@@ -91,11 +143,23 @@ export async function tournamentRouter(path: string, method: string, req: Reques
       if (!payload) {
         return Response.json({ error: "Id is null" }, { status: 404 });
       }
-      const body = await req.json();
-      const tournament = await tournamentHandlers.createTournament(body, payload.sub);
+      const contract = getContract(addresses.Server, ServerABI)
+      const { userWallet, ...other } = await req.json();
+      if (!userWallet)
+        return Response.json({ error: "I need to send you a wallet" }, { status: 404 });
+      const payment = await contract.getUserLastPayment(userWallet);
+      if (payment) {
+        if (payment.refunded || new Date(Number(payment.expiresAt) * 1000) < new Date()) {
+          return Response.json({ error: "You need to pay for this month" }, { status: 404 });
+        }
+      } else {
+        return Response.json({ error: "You haven't paid for the server" }, { status: 404 });
+      }
+      const tournament = await tournamentHandlers.createTournament(other, payload.sub);
       return Response.json(tournament, { status: 201 });
     } catch (error: any) {
-      return Response.json({ error: error.message }, { status: 400 });
+      const errorMessage = parseContractError(error)
+      return Response.json({ error: errorMessage || error.message }, { status: 400 });
     }
   }
 
@@ -180,7 +244,7 @@ export async function tournamentRouter(path: string, method: string, req: Reques
     try {
       const id = parseInt(tournamentMatch[1]);
       const lang = new URL(req.url).searchParams.get("lang") as string
-      const tournament = await tournamentHandlers.getTournamentById(id, lang);
+      const tournament = await tournamentService.getById(id, lang);
       return Response.json(tournament, {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -196,7 +260,7 @@ export async function tournamentRouter(path: string, method: string, req: Reques
     try {
       const id = String(organizerMatch[1]);
       const lang = new URL(req.url).searchParams.get("lang") as string
-      const tournaments = await tournamentHandlers.getByOrganizerId(id, lang);
+      const tournaments = await tournamentService.getByOrganizerId(id, lang);
       return Response.json(tournaments, {
         status: 200,
         headers: { "Content-Type": "application/json" },

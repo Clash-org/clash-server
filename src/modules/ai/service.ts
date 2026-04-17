@@ -8,7 +8,7 @@
 export type Translations = {
   en: string;
   ru: string;
-  cn: string;
+  zh: string;
 };
 
 export class AiService {
@@ -31,12 +31,7 @@ export class AiService {
     return await this.translate(cityName, "If this is an abbreviation, then translate it taking into account the generally accepted name of the city.")
   }
 
-  private async translate(value: string, postfix=""): Promise<Translations> {
-    const prompt = `
-This value: "${value}"
-Provide translations in 3 languages. Reply ONLY in this exact JSON format without any other text:
-{"en":"English name","ru":"Russian name","cn":"中文名称"}.` + postfix
-    try {
+  private async fetcher(prompt: string) {
       const response = await fetch(`${this.ollamaUrl}/api/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -56,20 +51,29 @@ Provide translations in 3 languages. Reply ONLY in this exact JSON format withou
         throw new Error(`Ollama error: ${response.status}`);
       }
 
-      const data = await response.json();
+      return await response.json()
+  }
+
+  private async translate(value: string, postfix=""): Promise<Translations> {
+    const prompt = `
+This value: "${value}"
+Provide translations in 3 languages. Reply ONLY in this exact JSON format without any other text:
+{"en":"English name","ru":"Russian name","zh":"中文名称"}.` + postfix
+    try {
+      const data = await this.fetcher(prompt);
       const parsed: Partial<Translations> = JSON.parse(data.response.trim());
 
       return {
         en: parsed.en || value,
         ru: parsed.ru || value,
-        cn: parsed.cn || value,
+        zh: parsed.zh || value,
       };
     } catch (error) {
       console.error(`Translation failed for "${value}":`, error);
       return {
         en: value,
         ru: value,
-        cn: value,
+        zh: value,
       };
     }
   }

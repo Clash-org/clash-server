@@ -1,9 +1,12 @@
 #!/bin/bash
-# Надо дать праваа скрипту в консоли "chmod +x init-ollama.sh"
-# Ждём запуска Ollama
+
+# Ждём пока ollama запустится
 sleep 10
 
-# Загружаем модель
-curl -X POST http://localhost:11434/api/pull -H 'Content-Type: application/json' -d '{"name": "qwen2.5:1.5b"}'
+# Проверяем, есть ли модель
+if ! ollama list | grep -q "qwen2.5:1.5b"; then
+    echo "📦 Pulling qwen2.5:1.5b model..."
+    ollama pull qwen2.5:1.5b
+fi
 
-echo "✅ Model ready"
+echo "✅ Ollama ready with qwen2.5:1.5b"

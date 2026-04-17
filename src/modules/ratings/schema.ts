@@ -16,7 +16,8 @@ import {
   real,
   uniqueIndex,
   index,
-  smallint
+  smallint,
+  boolean
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { MatchMetadata, SystemState, TopUsers } from "../../shared/utils/rating"
@@ -56,6 +57,16 @@ export const userRatings = pgTable("user_ratings", {
   lastTournamentId: integer("last_tournament_id").references(() => tournaments.id),
   lastTournamentAt: timestamp("last_tournament_at"),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  // ========== ПОЛЯ ДЛЯ БЛОКЧЕЙН СИНХРОНИЗАЦИИ ==========
+  // Хеш данных рейтинга
+  blockchainHash: varchar("blockchain_hash", { length: 66 }),
+  // Статус синхронизации
+  syncedToBlockchain: boolean("synced_to_blockchain").default(false),
+  syncedFromBlockchain: boolean("synced_from_blockchain").default(false),
+  // Временные метки
+  blockchainSyncedAt: timestamp("blockchain_synced_at"),
+  // Хеш транзакции
+  blockchainTxHash: varchar("blockchain_tx_hash", { length: 66 })
 }, (table) => ({
   // Уникальный индекс: один рейтинг на комбинацию user + weapon + nomination
   uniqueUserWeaponNomination: uniqueIndex("unique_user_weapon_nomination")
@@ -146,9 +157,19 @@ export const matches = pgTable("matches", {
   poolIndex: smallint("pool_index").default(0),
 
   // Дополнительные данные (видео, заметки судьи)
-  metadata: json("metadata").$type<MatchMetadata>(),
+  metadata: json("metadata").$type<MatchMetadata>().default({}),
 
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  // ========== ПОЛЯ ДЛЯ БЛОКЧЕЙН СИНХРОНИЗАЦИИ ==========
+  // Хеш данных матча
+  blockchainHash: varchar("blockchain_hash", { length: 66 }),
+  // Статус синхронизации
+  syncedToBlockchain: boolean("synced_to_blockchain").default(false),
+  syncedFromBlockchain: boolean("synced_from_blockchain").default(false),
+  // Временные метки
+  blockchainSyncedAt: timestamp("blockchain_synced_at"),
+  // Хеш транзакции
+  blockchainTxHash: varchar("blockchain_tx_hash", { length: 66 })
 }, (table) => ({
   tournamentIdx: index("matches_tournament_idx").on(table.tournamentId),
   fightersIdx: index("matches_fighters_idx").on(table.redId, table.blueId),

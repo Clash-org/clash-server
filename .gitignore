@@ -50,3 +50,5 @@ temp/
 *.tmp
 
 uploads/
+/blockchain/
+manifest.json

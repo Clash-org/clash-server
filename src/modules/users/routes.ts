@@ -20,10 +20,7 @@ export async function authRouter(path: string, method: string, req: Request) {
       let newCityId: number = NaN;
       let newClubId: number = NaN;
       if (cityName && other.cityId === null) {
-        const translations = await aiService.translateCity(cityName);
-        await cityService.createRU(translations.ru)
-        await cityService.createCN(translations.cn)
-        newCityId = (await cityService.create(translations.en)).id
+        newCityId = (await cityService.create(cityName)).id
       }
 
       if (clubName && other.clubId === null) {
@@ -112,7 +109,7 @@ export async function authRouter(path: string, method: string, req: Request) {
     if (!token) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
     }
-    const lang = new URL(req.url).searchParams.get("lang")
+    const lang = String(new URL(req.url).searchParams.get("lang"))
     const user = await authHandlers.me(token, lang);
 
     if (!user) {
@@ -153,8 +150,10 @@ export async function userRouter(path: string, method: string, req: Request) {
   if (path === "/users" && method === "GET") {
     try {
       const lang = String(new URL(req.url).searchParams.get("lang"))
-      const users = await userService.getAll(lang)
-      return Response.json(users, { status: 200 })
+      const page = Number(new URL(req.url).searchParams.get("page"))
+      const pageSize = Number(new URL(req.url).searchParams.get("pageSize"))
+      const res = await userService.getAll(page, pageSize, lang)
+      return Response.json(res, { status: 200 })
     } catch (error: any) {
       return Response.json({ error: error.message }, { status: 404 });
     }
@@ -178,6 +177,23 @@ export async function userRouter(path: string, method: string, req: Request) {
     }
   }
 
+  if (path === "/users" && method === "DELETE") {
+    try {
+      const token = getToken(req)
+      if (!token) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+      }
+      const payload = await getTokenPayload(token);
+      if (!payload) return Response.json({ error: "Id is null" }, { status: 404 });
+      const actorId = payload.sub;
+      const { id } = await req.json();
+      const res = await userService.delete(id, actorId)
+      return Response.json(res)
+    } catch (error: any) {
+      return Response.json({ error: error.message }, { status: 404 });
+    }
+  }
+
   return null;
 }
 
@@ -185,7 +201,7 @@ export async function clubRouter(path: string, method: string, req: Request) {
   // ========== clubs ROUTES ==========
   if (path === "/clubs" && method === "GET") {
     try {
-      const clubs = await clubHandlers.getAll();
+      const clubs = await clubService.getAll();
       return Response.json(clubs);
     } catch (error: any) {
       return Response.json({ error: error.message }, { status: 500 });
@@ -207,7 +223,7 @@ export async function clubRouter(path: string, method: string, req: Request) {
   if (clubMatch && method === "GET") {
     try {
       const id = parseInt(clubMatch[1]);
-      const club = await clubHandlers.getById(id);
+      const club = await clubService.getById(id);
       return Response.json(club);
     } catch (error: any) {
       return Response.json({ error: error.message }, { status: 404 });
@@ -221,7 +237,7 @@ export async function clubRouter(path: string, method: string, req: Request) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
       }
       const id = parseInt(clubMatch[1]);
-      await clubHandlers.delete(id);
+      await clubService.delete(id);
       return Response.json({ success: true });
     } catch (error: any) {
       return Response.json({ error: error.message }, { status: 404 });
@@ -238,7 +254,7 @@ export async function cityRouter(path: string, method: string, req: Request) {
     try {
       const url = new URL(req.url)
       const lang = url.searchParams.get("lang");
-      const cities = await cityHandlers.getAll(String(lang));
+      const cities = await cityService.getAll(String(lang));
       return Response.json(cities);
     } catch (error: any) {
       return Response.json({ error: error.message }, { status: 500 });
@@ -255,12 +271,22 @@ export async function cityRouter(path: string, method: string, req: Request) {
     }
   }
 
+  if (path === "/cities" && method === "PATCH") {
+    try {
+      const { lang, ...other } = await req.json();
+      const res = await cityHandlers.update(other, lang);
+      return Response.json(res);
+    } catch (error: any) {
+      return Response.json({ error: error.message }, { status: 400 });
+    }
+  }
+
   // GET /cities/:id или DELETE /cities/:id
   const cityMatch = path.match(/^\/cities\/(\d+)$/);
   if (cityMatch && method === "GET") {
     try {
       const id = parseInt(cityMatch[1]);
-      const city = await cityHandlers.getById(id);
+      const city = await cityService.getById(id);
       return Response.json(city);
     } catch (error: any) {
       return Response.json({ error: error.message }, { status: 404 });
@@ -273,8 +299,11 @@ export async function cityRouter(path: string, method: string, req: Request) {
       if (!token) {
         return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
       }
+      const payload = await getTokenPayload(token);
+      if (!payload) return Response.json({ error: "Id is null" }, { status: 404 });
+      const actorId = payload.sub;
       const id = parseInt(cityMatch[1]);
-      await cityHandlers.delete(id);
+      await cityService.delete(id, actorId);
       return Response.json({ success: true });
     } catch (error: any) {
       return Response.json({ error: error.message }, { status: 404 });

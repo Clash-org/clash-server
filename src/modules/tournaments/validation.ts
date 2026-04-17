@@ -50,7 +50,7 @@ const tournamentIdSchema = z.object({
 export const tournamentSchemaWithId = tournamentSchema.merge(tournamentIdSchema)
 
 const tournamentStatusSchema = z.object({
-  status: z.enum([TournamentStatus.ACTIVE, TournamentStatus.PENDING])
+  status: z.enum([TournamentStatus.ACTIVE, TournamentStatus.PENDING, TournamentStatus.COMPLETED])
 })
 
 export const tournamentStatusWithIdSchema = tournamentStatusSchema.merge(tournamentIdSchema)
@@ -85,6 +85,8 @@ export const poolSchema = z.object({
   system: z.enum([TournamentSystem.HYBRID, TournamentSystem.OLYMPIC, TournamentSystem.ROBIN, TournamentSystem.SWISS]).default("hybrid"),
   pairsIds: z.array(z.tuple([z.string(), z.string()])),
   isEnd: z.boolean().optional(),
+  isPoolRating: z.boolean().optional(),
+  poolCountDelete: z.number().optional()
 });
 
 export type WeaponInput = z.infer<typeof weaponSchema>;

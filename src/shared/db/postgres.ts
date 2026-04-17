@@ -19,5 +19,7 @@ const pool = new Pool({
   database: process.env.DB_NAME || "clash_db",
 });
 
-export const db = drizzle(pool, { schema: { ...userSchema, ...tournamentsSchema, ...ratingsSchema } });
+export const schemas = { ...userSchema, ...tournamentsSchema, ...ratingsSchema }
+
+export const db = drizzle(pool, { schema: schemas });
 export { pool };

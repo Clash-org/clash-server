@@ -6,7 +6,7 @@
  */
 
 import { authService, cityService, clubService, userService } from "./index.js";
-import { registerSchema, loginSchema, clubSchema, citySchema, userUpdateSchema } from "./validation.js";
+import { registerSchema, loginSchema, clubSchema, citySchema, userUpdateSchema, cityUpdateSchema } from "./validation.js";
 
 export const authHandlers = {
   async register(body: unknown, lang: string) {
@@ -40,41 +40,20 @@ export const userHandlers = {
 }
 
 export const clubHandlers = {
-  async getAll() {
-    return await clubService.getAll();
-  },
-
-  async getById(id: number) {
-    const club = await clubService.getById(id);
-    return club;
-  },
-
   async create(body: unknown) {
     const input = clubSchema.parse(body);
     return await clubService.create(input.title);
-  },
-
-  async delete(id: number) {
-    return await clubService.delete(id);
   }
 };
 
 export const cityHandlers = {
-  async getAll(lang: string) {
-    return await cityService.getAll(lang);
-  },
-
-  async getById(id: number) {
-    const city = await cityService.getById(id);
-    return city;
-  },
-
   async create(body: unknown) {
     const input = citySchema.parse(body);
     return await cityService.create(input.title);
   },
 
-  async delete(id: number) {
-    return await cityService.delete(id);
+  async update(body: unknown, lang: string) {
+    const input = cityUpdateSchema.parse(body);
+    return await cityService.update(input.id, input.title, lang);
   }
 };

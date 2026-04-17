@@ -48,7 +48,7 @@ export async function uploadRouter(path: string, method: string, req: Request) {
       // Создаём директорию если нет
       await mkdir(UPLOAD_DIR + `/${dir}`, { recursive: true });
 
-      const filename = `${file.name.split(".")[0]}.webp`;
+      const filename = `${file.name.split(".")[0]}_${Date.now()}.webp`;
       const filepath = `${UPLOAD_DIR}/${dir}/${filename}`;
 
       // Читаем файл и конвертируем в WebP

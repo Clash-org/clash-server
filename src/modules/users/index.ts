@@ -22,7 +22,11 @@ function initUsersModule() {
   });
 
   onEvent(TOURNAMENT_EVENTS.CREATED, async ({ tournamentId, userId })=>{
-    userService.updateUserTournamentModerator(tournamentId, userId)
+    await userService.updateUserTournamentModerator(tournamentId, userId)
+  })
+
+  onEvent(TOURNAMENT_EVENTS.UPDATED, async ({ tournamentId, userId })=>{
+    await userService.deleteTournamenModerator(tournamentId, userId)
   })
 }
 

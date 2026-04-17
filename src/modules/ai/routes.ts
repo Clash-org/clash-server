@@ -24,7 +24,7 @@ export async function translateRouter(path: string, method: string, req: Request
         translations: {
           en: { [cityName]: translations.en },
           ru: { [cityName]: translations.ru },
-          cn: { [cityName]: translations.cn },
+          zh: { [cityName]: translations.zh },
         },
       });
 

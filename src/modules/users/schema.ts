@@ -23,13 +23,13 @@ export const cities = pgTable("cities", {
 });
 
 export const citiesCN = pgTable("cities_cn", {
-  id: serial("id").primaryKey(),
+  id: integer("id").references(() => cities.id, { onDelete: "cascade" }).primaryKey(),
   title: varchar("title", { length: 255 }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const citiesRU = pgTable("cities_ru", {
-  id: serial("id").primaryKey(),
+  id: integer("id").references(() => cities.id, { onDelete: "cascade" }).primaryKey(),
   title: varchar("title", { length: 255 }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -38,6 +38,7 @@ export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
   email: varchar("email", { length: 255 }).notNull().unique(),
   username: varchar("username", { length: 100 }).notNull(),
+  image: varchar("image").default(""),
   passwordHash: text("password_hash").notNull(),
   gender: boolean("gender").notNull(),
   clubId: integer("club_id").references(() => clubs.id).notNull(),
@@ -48,6 +49,19 @@ export const users = pgTable("users", {
   totalMatches: integer("total_matches").default(0),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  // ========== ПОЛЯ ДЛЯ БЛОКЧЕЙН СИНХРОНИЗАЦИИ ==========
+  // Уникальный числовой ID для блокчейна (блокчейн не поддерживает UUID)
+  blockchainId: integer("blockchain_id").unique(),
+  // Хеш данных пользователя в блокчейне
+  blockchainHash: varchar("blockchain_hash", { length: 66 }),
+  // Статус синхронизации
+  syncedToBlockchain: boolean("synced_to_blockchain").default(false),
+  syncedFromBlockchain: boolean("synced_from_blockchain").default(false),
+  // Временные метки синхронизации
+  blockchainSyncedAt: timestamp("blockchain_synced_at"),
+  blockchainUpdatedAt: timestamp("blockchain_updated_at"),
+  // Хеш транзакции для аудита
+  blockchainTxHash: varchar("blockchain_tx_hash", { length: 66 })
 });
 
 export const usersRelations = relations(users, ({ one, many }) => ({

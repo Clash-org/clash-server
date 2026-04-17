@@ -53,13 +53,33 @@ export async function seedDatabase() {
   try {
     // Сидируем города
     await seedTable(cities, citiesJSON.en, "cities");
-    await seedTable(citiesRU, citiesJSON.ru, "citiesRU");
-    await seedTable(citiesCN, citiesJSON.cn, "citiesCN");
+    await seedTable(citiesRU, citiesJSON.ru, "citiesRU", ()=>{
+      return citiesJSON.ru.map((title, i)=>({
+        title,
+        id: i+1
+      }))
+    });
+    await seedTable(citiesCN, citiesJSON.zh, "citiesCN", ()=>{
+      return citiesJSON.zh.map((title, i)=>({
+        title,
+        id: i+1
+      }))
+    });
 
     // Сидируем оружие
     await seedTable(weapons, weaponsJSON.en, "weapons");
-    await seedTable(weaponsRU, weaponsJSON.ru, "weaponsRU");
-    await seedTable(weaponsCN, weaponsJSON.cn, "weaponsCN");
+    await seedTable(weaponsRU, weaponsJSON.ru, "weaponsRU", ()=>{
+      return weaponsJSON.ru.map((title, i)=>({
+        title,
+        id: i+1
+      }))
+    });
+    await seedTable(weaponsCN, weaponsJSON.zh, "weaponsCN", ()=>{
+      return weaponsJSON.zh.map((title, i)=>({
+        title,
+        id: i+1
+      }))
+    });
 
     await seedTable(nominations, [], "nominations", ()=>{
         return defaultWeaponsNominations.map(nom => ({
@@ -67,8 +87,18 @@ export async function seedDatabase() {
           weaponId: nom.weaponId as number
         }));
     });
-    await seedTable(nominationsRU, nominationsJSON.ru, "nominationsRU");
-    await seedTable(nominationsCN, nominationsJSON.cn, "nominationsCN");
+    await seedTable(nominationsRU, nominationsJSON.ru, "nominationsRU", ()=>{
+      return nominationsJSON.ru.map((title, i)=>({
+        title,
+        id: i+1
+      }))
+    });
+    await seedTable(nominationsCN, nominationsJSON.zh, "nominationsCN", ()=>{
+      return nominationsJSON.zh.map((title, i)=>({
+        title,
+        id: i+1
+      }))
+    });
     console.log("\n✨ Database seeding completed successfully!");
   } catch (error: any) {
     console.error("\n❌ Database seeding failed:", error.message);
