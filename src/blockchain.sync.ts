@@ -814,21 +814,7 @@ class BlockchainSyncService {
         })
         if (!user) return;
 
-        await db.insert(schemas.tournaments).values({
-        id: tournamentId,
-        title: tournament.title,
-        date: new Date(Number(tournament.date) * 1000),
-        cityId: Number(tournament.cityId),
-        nominationIds: tournament.nominationIds.map(Number),
-        organizerId: user.id,
-        status: tournament.status,
-        matchesRoot: tournament.matchesRoot,
-        syncedFromBlockchain: true,
-        syncedToBlockchain: true,
-        blockchainSyncedAt: new Date(),
-        }).onConflictDoUpdate({
-        target: schemas.tournaments.id,
-        set: {
+        const commonData = {
             title: tournament.title,
             date: new Date(Number(tournament.date) * 1000),
             cityId: Number(tournament.cityId),
@@ -836,9 +822,21 @@ class BlockchainSyncService {
             status: tournament.status,
             matchesRoot: tournament.matchesRoot,
             syncedFromBlockchain: true,
-            blockchainSyncedAt: new Date(),
+            blockchainSyncedAt: new Date()
         }
-        });
+
+      await db.insert(schemas.tournaments).values({
+        id: tournamentId,
+        organizerId: user.id,
+        syncedToBlockchain: true,
+        image: tournament.image,
+        ...commonData
+      }).onConflictDoUpdate({
+        target: schemas.tournaments.id,
+        set: {
+          ...commonData
+        }
+      });
 
         console.log(`📝 Tournament #${tournamentId}: created from event`);
 

@@ -1,0 +1,93 @@
+# Caddyfile
+# Для использования с Docker, где Bun на хосте
+
+# Глобальные настройки
+{
+    # Включаем сжатие
+    servers {
+        compression {
+            gzip
+            brotli
+        }
+    }
+
+    # Настройка логов
+    log {
+        output file /var/log/caddy/access.log {
+            roll_size 10mb
+            roll_keep 5
+        }
+        level INFO
+    }
+}
+
+# Основной домен (замените на ваш)
+{$DOMAIN} {
+    # Reverse proxy на Bun (запущен на хосте)
+    reverse_proxy {$BUN_HOST}:{$BUN_PORT} {
+        # Health check
+        health_uri /health
+        health_interval 30s
+        health_timeout 5s
+
+        # Таймауты
+        dial_timeout 5s
+        read_timeout 60s
+        write_timeout 60s
+
+        # Заголовки
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    # WebSocket поддержка
+    handle_path /ws/* {
+        reverse_proxy {$BUN_HOST}:{$BUN_PORT} {
+            flush_interval -1
+        }
+    }
+
+    # Статические файлы
+    handle_path /static/* {
+        root /app/uploads
+        file_server
+        header Cache-Control "public, max-age=31536000"
+    }
+
+    # Rate limiting для API
+    handle_path /api/* {
+        rate_limit {
+            zone api {
+                key {remote_host}
+                events 100
+                window 1m
+            }
+        }
+        reverse_proxy {$BUN_HOST}:{$BUN_PORT}
+    }
+
+    # Сжатие
+    encode gzip brotli
+
+    # Заголовки безопасности
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+}
+
+# Перенаправление www на без www
+www.{$DOMAIN} {
+    redir https://{$DOMAIN}{uri} permanent
+}
+
+# Локальный доступ (опционально)
+clash.local {
+    reverse_proxy {$BUN_HOST}:50051
+    tls internal
+}

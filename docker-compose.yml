@@ -1,6 +1,21 @@
 version: '3.8'
 
 services:
+  duckdns:
+    image: linuxserver/duckdns:latest
+    container_name: clash-duckdns
+    restart: unless-stopped
+    environment:
+      - SUBDOMAINS=${DUCKDNS_DOMAIN}  # ваш домен
+      - TOKEN=${DUCKDNS_TOKEN}         # ваш токен
+      - LOG_FILE=false                 # не писать лог каждые 5 минут
+    networks:
+      - clash-network
+    deploy:
+      resources:
+        limits:
+          memory: 32M
+          cpus: '0.05'
   postgres:
     image: postgres:16-alpine
     container_name: clash-server-postgres
@@ -18,7 +33,7 @@ services:
       - ./backups:/backups
       - ./init-scripts:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -26,7 +41,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
           cpus: '0.5'
         reservations:
           memory: 256M
@@ -39,7 +54,7 @@ services:
       - "127.0.0.1:11434:11434"
     volumes:
       - ollama_data:/root/.ollama
-      - ./init-ollama.sh:/init-ollama.sh:ro  # ← монтируем скрипт
+      - ./init-ollama.sh:/init-ollama.sh:ro
     environment:
       - OLLAMA_KEEP_ALIVE=24h
       - OLLAMA_HOST=0.0.0.0
@@ -48,11 +63,13 @@ services:
       - OLLAMA_MAX_QUEUE=20
       - OLLAMA_FLASH_ATTENTION=1
       - OLLAMA_KV_CACHE_TYPE=q8_0
-    entrypoint: >  # ← кастомный entrypoint
+    entrypoint: |
       sh -c "
         /bin/ollama serve &
-        sleep 2
-        sh /init-ollama.sh
+        sleep 5
+        if [ -f /init-ollama.sh ]; then
+          sh /init-ollama.sh
+        fi
         wait
       "
     networks:
@@ -61,12 +78,12 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
       interval: 30s
       timeout: 10s
-      retries: 5
-      start_period: 60s
+      retries: 10
+      start_period: 120s
     deploy:
       resources:
         limits:
-          memory: 2.5G
+          memory: 8G
           cpus: '2.0'
         reservations:
           memory: 2G
@@ -74,42 +91,40 @@ services:
         condition: on-failure
         max_attempts: 3
 
-  user-service:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        - NODE_ENV=production
-    container_name: clash-server-app
-    restart: always
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_USER: postgres
-      DB_PASSWORD: postgres
-      DB_NAME: clash_db
-      REST_PORT: 50051
-      JWT_SECRET: ${JWT_SECRET}
-      OLLAMA_URL: http://ollama:11434
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5:1.5b}
-      NODE_ENV: production
-      LOG_LEVEL: ${LOG_LEVEL:-info}
+  caddy:
+    image: caddy:alpine
+    container_name: clash-caddy
+    restart: unless-stopped
     ports:
-      - "127.0.0.1:50051:50051"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      ollama:
-        condition: service_healthy
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"  # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data/caddy/data:/data
+      - ./data/caddy/config:/config
+      - ./logs:/var/log/caddy
+    environment:
+      - DOMAIN=${CADDY_DOMAIN:-clash.local}
+      - BUN_HOST=host.docker.internal  # Для доступа к Bun на хосте
+      - BUN_PORT=${PORT:-3000}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     networks:
       - clash-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"  # Ключевая настройка!
+    depends_on: []  # Не зависит от других сервисов
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     deploy:
       resources:
         limits:
-          memory: 512M
-          cpus: '0.5'
-        reservations:
-          memory: 256M
+          memory: 128M
+          cpus: '0.2'
     logging:
       driver: "json-file"
       options:
