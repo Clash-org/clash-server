@@ -22,6 +22,7 @@ export const tournamentSchema = z.object({
   description: z.string().min(1),
   cityId: z.number().int().positive(),
   date: z.string().datetime(), // ISO string, потом конвертируем в Date
+  dateEnd: z.string().datetime(),
   image: z.string().default(""),
   moderatorsIds: z.array(z.string().uuid()).optional(),
   nominationsIds: z.array(z.number().int().positive()).default([]),
@@ -32,6 +33,7 @@ export const tournamentSchema = z.object({
   ) as Record<number, number>;
   }),
   socialMedias: z.array(z.string().url()).default([]),
+  socialMediasText: z.array(z.string()).default([]),
   isAdditions: z.record(z.string(), z.boolean()),
   isInternal: z.boolean().optional(),
   prices: z.object({}).catchall(z.number()).transform(obj => {

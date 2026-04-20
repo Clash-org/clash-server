@@ -252,21 +252,23 @@ export class TournamentService {
   }
 
   async getByOrganizerId(id: string, lang: string) {
-    const data = await db.execute(
-      sql`SELECT * FROM tournaments WHERE organizer_id = ${id}`
-    )
+    const data = await db.query.tournaments.findMany({
+      where: eq(tournaments.organizerId, id)
+    })
 
     const nominationsArr: (Nomination & { weapon: Weapon })[][] = []
     const moderators: User[][] = []
-    for (let [i, tournament] of data.rows.entries()) {
-      for (let moderatorId of tournament["moderators_ids"]) {
-        if (!moderators[i]) {
-          moderators[i] = []
+    for (let [i, tournament] of data.entries()) {
+      if (tournament.moderatorsIds) {
+        for (let moderatorId of tournament.moderatorsIds) {
+          if (!moderators[i]) {
+            moderators[i] = []
+          }
+          moderators[i].push(await tournamentRepository.getUserById(moderatorId))
         }
-        moderators[i].push(await tournamentRepository.getUserById(moderatorId))
       }
       nominationsArr.push(await db.query.nominations.findMany({
-        where: inArray(nominations.id, Array.from(tournament["nominations_ids"])),
+        where: inArray(nominations.id, Array.from(tournament.nominationsIds)),
         with: {
           weapon: true,
         },
@@ -274,9 +276,9 @@ export class TournamentService {
 
     }
 
-    const transformedRows = new Array(data.rows.length);
-    for (let i = 0; i < data.rows.length; i++) {
-      const d = data.rows[i];
+    const transformedRows = new Array(data.length);
+    for (let i = 0; i < data.length; i++) {
+      const d = data[i];
 
       // Трансформируем nominations
       const flatNominations = nominationsArr[i];
@@ -293,32 +295,13 @@ export class TournamentService {
         };
       }
 
-      const { city_id,
-        nominations_ids,
-        organizer_id,
-        social_medias,
-        participants_count,
-        matches_count,
-        is_additions,
-        is_internal,
-        moderators_ids,
-        created_at, ...other } = {
+      const newData = {
         ...d,
-        cityId: d.city_id,
-        nominationsIds: d.nominations_ids,
-        organizerId: d.organizer_id,
-        socialMedias: d.social_medias,
-        participantsCount: d.participants_count,
-        matchesCount: d.matches_count,
-        isAdditions: d.is_additions,
-        isInternal: d.is_internal,
-        moderatorsIds: d.moderators_ids,
-        moderators: moderators[i],
-        nominations: transformedNominations,
-        createdAt: d.created_at
+        moderators: moderators[i] || [],
+        nominations: transformedNominations
       };
 
-      transformedRows[i] = other;
+      transformedRows[i] = newData;
     }
 
     return transformedRows;

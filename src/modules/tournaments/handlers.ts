@@ -45,7 +45,8 @@ export const tournamentHandlers = {
     return await tournamentService.create({
       ...input,
       organizerId,
-      date: new Date(input.date)
+      date: new Date(input.date),
+      dateEnd: new Date(input.dateEnd)
     });
   },
 
@@ -53,7 +54,8 @@ export const tournamentHandlers = {
     const input = tournamentSchemaWithId.parse(body);
     return await tournamentService.update({
       ...input,
-      date: new Date(input.date)
+      date: new Date(input.date),
+      dateEnd: new Date(input.dateEnd)
     });
   },
 
