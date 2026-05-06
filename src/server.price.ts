@@ -1,4 +1,10 @@
-import { ethers } from "ethers";
+/**
+ * Clash Server - Tournament Management System
+ * Copyright (C) 2026 Clash Contributors
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
+ */
+
 import ServerABI from "../blockchain/abi/ClashServer.json";
 import addresses from "../blockchain/addresses.json";
 import { getContract } from './shared/utils/helpers';
@@ -33,8 +39,8 @@ async function main() {
     const content = readFileSync(manifestPath, 'utf-8');
     manifest = JSON.parse(content);
 
-    if (!manifest.serversIds || manifest.serversIds.length === 0) {
-      console.error('❌ No servers IDs found in manifest.json');
+    if (!manifest.serverId) {
+      console.error('❌ No server ID found in manifest.json');
       process.exit(1);
     }
   } catch (error) {
@@ -43,43 +49,23 @@ async function main() {
   }
 
   // Получаем новую цену из .env
-  let newPrice = Number(process.env.PRICE_PER_MONTH);
+  const newPrice = Number(process.env.PRICE_PER_MONTH);
 
   if (!newPrice) {
     console.error('❌ PRICE_PER_MONTH not found in .env file');
     process.exit(1);
   }
 
-  console.log(`📊 New price: ${manifest.prices ? JSON.stringify(manifest.prices) : newPrice}`);
-  console.log(`🆔 Servers to update: ${manifest.serversIds.join(', ')}`);
+  console.log(`📊 New price: ${newPrice}`);
+  console.log(`🆔 Server to update: ${manifest.serverId}`);
   console.log('---');
 
-  // Обновляем цену для каждого сервера
-  const results = [];
-  for (const [i, serverId] of manifest.serversIds.entries()) {
-    try {
-        if (manifest.prices) {
-            newPrice = manifest.prices[i]
-        }
-      const receipt = await updateServerPrice(serverId, newPrice);
-      results.push({ serverId, success: true, txHash: receipt.hash });
-    } catch (error: any) {
-      console.error(`❌ Failed to update server ${serverId}:`, error.message);
-      results.push({ serverId, success: false, error: error.message });
-    }
-    console.log('---');
+  try {
+    const receipt = await updateServerPrice(manifest.serverId, newPrice);
+    console.log(`✅ Server ${manifest.serverId}: ${receipt.txHash}`);
+  } catch (error: any) {
+    console.log(`❌ Server ${manifest.serverId}: ${error.message}`);
   }
-
-  // Выводим итоги
-  console.log('\n📊 SUMMARY:');
-  console.log(`✅ Success: ${results.filter(r => r.success).length}/${results.length}`);
-  results.forEach(result => {
-    if (result.success) {
-      console.log(`  ✅ Server ${result.serverId}: ${result.txHash}`);
-    } else {
-      console.log(`  ❌ Server ${result.serverId}: ${result.error}`);
-    }
-  });
 }
 
 main().catch(error => {

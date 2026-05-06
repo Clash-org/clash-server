@@ -5,8 +5,16 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-import { resolve } from "node:path";
-import { readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
+import { readFileSync, writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { isAdmin } from "../../shared/utils/helpers";
+import { getToken, getTokenPayload } from "../../shared/utils/jwt";
+import { Manifest } from "../../shared/typings";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const manifestPath = join(__dirname, '..', '..', '..', 'manifest.json');
 
 let deepLinkHtml: string;
 try {
@@ -68,13 +76,63 @@ export async function specialRouter(path: string, method: string, req: Request) 
 
     const deepLinkResponse = handleDeepLink(path);
     if (deepLinkResponse) {
-        return deepLinkResponse;
+        try {
+            return deepLinkResponse;
+        } catch(error: any) {
+            return Response.json({ error: error.message }, { status: 400 });
+        }
     }
 
     if (path.startsWith("/privacy-policy") && method === "GET") {
-        const lang = String(new URL(req.url).searchParams.get("lang"))
-        let path = resolve(process.cwd(), `public/privacy-policy-${lang}.md`)
-        const policyMd = readFileSync(path, "utf-8");
-        return Response.json(policyMd)
+        try {
+            const lang = String(new URL(req.url).searchParams.get("lang"))
+            let path = resolve(process.cwd(), `public/privacy-policy-${lang}.md`)
+            const policyMd = readFileSync(path, "utf-8");
+            return Response.json(policyMd)
+        } catch(error: any) {
+            return Response.json({ error: error.message }, { status: 400 });
+        }
+    }
+
+    if (path.startsWith("/pay-server-link") && method === "GET") {
+        try {
+            const existingData = readFileSync(manifestPath, 'utf8');
+            const manifest: Manifest = JSON.parse(existingData);
+            return Response.json({
+                link: manifest.payServerLink,
+                price: manifest.fiatPrice,
+                currencyCode: manifest.currencyCode
+            })
+        } catch(error: any) {
+            return Response.json({ error: error.message }, { status: 400 });
+        }
+    }
+
+    if (path.startsWith("/pay-server-link") && method === "POST") {
+        try {
+            const token = getToken(req);
+            if (!token) {
+                return Response.json({ error: "Unauthorized" }, { status: 401 });
+            }
+            const payload = await getTokenPayload(token)
+            if (!payload) {
+                return Response.json({ error: "Id is null" }, { status: 404 });
+            }
+            if (!(await isAdmin(payload.sub))) {
+                return Response.json({ error: "Is not admin" }, { status: 404 });
+            }
+
+            const { fiatPrice, payServerLink, currencyCode } = await req.json();
+            const manifest = { fiatPrice, payServerLink, currencyCode }
+            if (await Bun.file(manifestPath).exists()) {
+                const existingData = JSON.parse(readFileSync(manifestPath, 'utf8'));
+                writeFileSync(manifestPath, JSON.stringify({ ...existingData, ...manifest }, null, 2), 'utf8');
+            } else {
+                writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
+            }
+            return Response.json({ success: true }, { status: 200 });
+        } catch(error: any) {
+            return Response.json({ error: error.message }, { status: 400 });
+        }
     }
 }

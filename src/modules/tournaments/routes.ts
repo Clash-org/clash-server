@@ -8,9 +8,9 @@
 import { tournamentHandlers } from "./handlers.js";
 import { getToken, getTokenPayload } from "../../shared/utils/jwt.js";
 import { nominationService, tournamentService, weaponService } from "./index.js";
-import { getContract, parseContractError } from "../../shared/utils/helpers.js";
-import addresses from "../../../blockchain/addresses.json"
-import ServerABI from "../../../blockchain/abi/ClashServer.json"
+import { parseContractError } from "../../shared/utils/helpers.js";
+import { isUserPay } from "../../shared/utils/payment.js";
+
 
 export async function tournamentRouter(path: string, method: string, req: Request) {
   // ========== WEAPONS ==========
@@ -143,18 +143,8 @@ export async function tournamentRouter(path: string, method: string, req: Reques
       if (!payload) {
         return Response.json({ error: "Id is null" }, { status: 404 });
       }
-      const contract = getContract(addresses.Server, ServerABI)
       const { userWallet, ...other } = await req.json();
-      if (!userWallet)
-        return Response.json({ error: "I need to send you a wallet" }, { status: 404 });
-      const payment = await contract.getUserLastPayment(userWallet);
-      if (payment) {
-        if (payment.refunded || new Date(Number(payment.expiresAt) * 1000) < new Date()) {
-          return Response.json({ error: "You need to pay for this month" }, { status: 404 });
-        }
-      } else {
-        return Response.json({ error: "You haven't paid for the server" }, { status: 404 });
-      }
+      await isUserPay(userWallet)
       const tournament = await tournamentHandlers.createTournament(other, payload.sub);
       return Response.json(tournament, { status: 201 });
     } catch (error: any) {

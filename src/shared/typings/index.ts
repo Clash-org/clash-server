@@ -63,6 +63,41 @@ export interface SyncConfig {
 }
 
 export interface Manifest {
-  serversIds: number[];
-  prices?: number[];
+  serverId: number;
+  fiatPrice?: number;
+  payServerLink?: string;
+  currencyCode?: string;
+}
+
+export interface StreamInfo {
+  id: string;
+  name: string;
+  viewerCount: number;
+  startedAt: string;
+  broadcaster: string;
+  broadcasterId: string;
+  cover: string;
+  betAddress: string;
+  fightId: number;
+  isStreamHidden: boolean;
+  isActive: boolean;
+  sdpOffer?: RTCSessionDescriptionInit;
+  iceCandidates: RTCIceCandidateInit[];
+}
+
+export interface WebSocketMessage {
+  type: 'register_broadcaster' | 'register_viewer' |
+        'stream_list' | 'stream_start' | 'stream_end' |
+        'offer' | 'answer' | 'ice_candidate' |
+        'viewer_joined' | 'viewer_left' | 'connected';
+  payload: any;
+  streamId?: string;
+  fromId?: string;
+  toId?: string;
+  viewerId?: string;
+}
+
+export interface StreamListMessage {
+  type: 'stream_list';
+  payload: StreamInfo[];
 }
